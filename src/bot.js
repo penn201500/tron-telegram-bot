@@ -19,6 +19,11 @@ bot.onText(/\/help/, msg => {
 
 bot.onText(/\/generate/, async msg => {
     const chatId = msg.chat.id
+    const args = msg.text.trim().split(" ")
+    if (args.length !== 1) {
+        bot.sendMessage(chatId, "The /generate command does not accept any arguments.")
+        return
+    }
     try {
         const mnemonic = bip39.generateMnemonic()
         const seed = await bip39.mnemonicToSeed(mnemonic)
@@ -40,7 +45,8 @@ bot.onText(/\/generate/, async msg => {
 bot.on("message", msg => {
     const chatId = msg.chat.id
     const msgText = msg.text.trim()
-    if (msgText.startsWith("/") && !validCommands.includes(msgText)) {
+    const command = msgText.split(" ")[0]
+    if (msgText.startsWith("/") && !validCommands.includes(command)) {
         bot.sendMessage(chatId, "Invalid command. Use /help to see available commands.")
     } else if (!msgText.startsWith("/")) {
         bot.sendMessage(chatId, "Invalid command. Commands must start with a forward slash (/). Please use /help to see available commands.")
