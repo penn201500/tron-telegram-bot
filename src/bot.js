@@ -1,6 +1,8 @@
 const TelegramBot = require("node-telegram-bot-api")
 const { telegramApiToken, tronFullHost } = require("./config")
 const TronWeb = require("tronweb")
+const bip39 = require("bip39")
+const hdkey = require("hdkey")
 
 const bot = new TelegramBot(telegramApiToken, { polling: true })
 const validCommands = ["/start", "/help", "/generate", "/transfer", "/balance"]
@@ -15,22 +17,24 @@ bot.onText(/\/help/, msg => {
     bot.sendMessage(chatId, "Available commands:\n/generate - Generate a new Tron address\n/transfer - Transfer TRX to another address\n/balance - Check your TRX balance")
 })
 
-bot.onText(/\/generate/, msg => {
+bot.onText(/\/generate/, async msg => {
     const chatId = msg.chat.id
-
-    const tronWeb = new TronWeb({
-        fullHost: tronFullHost,
-    })
-
-    const account = tronWeb.createAccount()
-    account
-        .then(newAccount => {
-            bot.sendMessage(chatId, `New Tron Address Generated:\nAddress: ${newAccount.address.base58}\nPrivate Key: ${newAccount.privateKey}`)
+    try {
+        const mnemonic = bip39.generateMnemonic()
+        const seed = await bip39.mnemonicToSeed(mnemonic)
+        // derive a private key from the seed
+        const root = hdkey.fromMasterSeed(seed)
+        const priKey = root.privateKey.toString("hex")
+        const tronWeb = new TronWeb({
+            fullHost: tronFullHost,
+            privateKey: priKey,
         })
-        .catch(err => {
-            console.error("Error generating Tron address:", err)
-            bot.sendMessage(chatId, `Failed to generate a new Tron address. Error: ${err.message}`)
-        })
+        const account = await tronWeb.createAccount()
+        bot.sendMessage(chatId, `New Tron Address Generated:\nAddress: ${account.address.base58}\nPrivate Key: ${account.privateKey}\nMnemonic: ${mnemonic}`)
+    } catch (err) {
+        console.error("Error generating Tron address:", err)
+        bot.sendMessage(chatId, `Failed to generate a new Tron address. Error: ${err.message}`)
+    }
 })
 
 bot.on("message", msg => {
