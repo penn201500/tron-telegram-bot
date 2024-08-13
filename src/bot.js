@@ -3,6 +3,7 @@ const { telegramApiToken, tronFullHost } = require("./config")
 const TronWeb = require("tronweb")
 
 const bot = new TelegramBot(telegramApiToken, { polling: true })
+const validCommands = ["/start", "/help", "/generate", "/transfer", "/balance"]
 
 bot.onText(/\/start/, msg => {
     const chatId = msg.chat.id
@@ -34,8 +35,11 @@ bot.onText(/\/generate/, msg => {
 
 bot.on("message", msg => {
     const chatId = msg.chat.id
-    if (!msg.text.startsWith("/")) {
+    const msgText = msg.text.trim()
+    if (msgText.startsWith("/") && !validCommands.includes(msgText)) {
         bot.sendMessage(chatId, "Invalid command. Use /help to see available commands.")
+    } else if (!msgText.startsWith("/")) {
+        bot.sendMessage(chatId, "Invalid command. Commands must start with a forward slash (/). Please use /help to see available commands.")
     }
 })
 
