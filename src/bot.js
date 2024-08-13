@@ -28,7 +28,7 @@ bot.onText(/\/generate/, msg => {
         })
         .catch(err => {
             console.error("Error generating Tron address:", err)
-            bot.sendMessage(chatId, "Failed to generate a new Tron address. Please check the log.")
+            bot.sendMessage(chatId, `Failed to generate a new Tron address. Error: ${err.message}`)
         })
 })
 
