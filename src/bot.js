@@ -32,4 +32,11 @@ bot.onText(/\/generate/, msg => {
         })
 })
 
+bot.on("message", msg => {
+    const chatId = msg.chat.id
+    if (!msg.text.startsWith("/")) {
+        bot.sendMessage(chatId, "Invalid command. Use /help to see available commands.")
+    }
+})
+
 console.log("Bot is running...")
