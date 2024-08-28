@@ -1,5 +1,6 @@
+require("dotenv").config()
 const TronWeb = require("tronweb")
-const { tronFullHost } = require("../config")
+const tronFullHost = process.env.TRON_FULL_HOST
 
 module.exports = bot => {
     bot.onText(/\/balance/, async msg => {

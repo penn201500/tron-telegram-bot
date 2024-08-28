@@ -1,8 +1,8 @@
+require("dotenv").config()
 const TelegramBot = require("node-telegram-bot-api")
-const { telegramApiToken } = require("./config")
 const { getHelpMessage } = require("./utils")
 
-const bot = new TelegramBot(telegramApiToken, { polling: true })
+const bot = new TelegramBot(process.env.TELEGRAM_API_TOKEN, { polling: true })
 
 const registerGenerateCommand = require("./commands/generate")
 const registerHelpCommand = require("./commands/help")

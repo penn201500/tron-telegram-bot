@@ -1,7 +1,8 @@
+require("dotenv").config()
 const TronWeb = require("tronweb")
 const bip39 = require("bip39")
 const hdkey = require("hdkey")
-const { tronFullHost } = require("../config")
+const tronFullHost = process.env.TRON_FULL_HOST
 
 module.exports = bot => {
     bot.onText(/\/generate$/, async msg => {
