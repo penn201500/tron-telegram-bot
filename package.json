@@ -13,7 +13,7 @@
     "description": "",
     "dependencies": {
         "@noble/secp256k1": "^1.7.1",
-        "axios": "^1.7.3",
+        "axios": "^1.7.5",
         "bip39": "^3.1.0",
         "dotenv": "^16.4.5",
         "hdkey": "^2.1.0",
