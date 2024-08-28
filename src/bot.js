@@ -9,6 +9,11 @@ const registerHelpCommand = require("./commands/help")
 registerGenerateCommand(bot)
 registerHelpCommand(bot)
 
+console.log("Bot is running...")
+
+// Define the valid commands
+const validCommands = ["/start", "/help", "/generate", "/transfer", "/balance"]
+
 bot.onText(/\/start/, msg => {
     const chatId = msg.chat.id
     bot.sendMessage(chatId, "Welcome to the Tron Wallet Bot! Use /help to see available commands.")
@@ -25,4 +30,4 @@ bot.on("message", msg => {
     }
 })
 
-console.log("Bot is running...")
+bot.on("polling_error", error => console.error("Polling Error:", error))
