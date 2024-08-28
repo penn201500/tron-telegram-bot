@@ -4,13 +4,13 @@ const { getHelpMessage } = require("./utils")
 
 const bot = new TelegramBot(process.env.TELEGRAM_API_TOKEN, { polling: true })
 
-const registerGenerateCommand = require("./commands/generate")
-const registerHelpCommand = require("./commands/help")
-const registerBalanceCommand = require("./commands/balance")
-const registerTransferCommand = require("./commands/transfer")
-
 // Global pendingTransfers object to track pending transfers
 let pendingTransfers = {}
+
+// Flags to prevent multiple registrations of the same command
+let isGenerateRegistered = false
+let isBalanceRegistered = false
+let isTransferRegistered = false
 
 console.log("Bot is running...")
 
@@ -46,23 +46,41 @@ bot.on("message", msg => {
             bot.sendMessage(chatId, "Invalid command. Use /help to see available commands.")
         } else {
             const helpMessage = getHelpMessage()
+
             // Process valid commands
             switch (command) {
                 case "/start":
                     bot.sendMessage(chatId, "Welcome to the Tron Wallet Bot!\n" + helpMessage)
                     break
+
                 case "/help":
                     bot.sendMessage(chatId, helpMessage)
                     break
+
                 case "/generate":
-                    registerGenerateCommand(bot)
+                    if (!isGenerateRegistered) {
+                        const registerGenerateCommand = require("./commands/generate")
+                        registerGenerateCommand(bot)
+                        isGenerateRegistered = true // Mark as registered
+                    }
                     break
+
                 case "/balance":
-                    registerBalanceCommand(bot)
+                    if (!isBalanceRegistered) {
+                        const registerBalanceCommand = require("./commands/balance")
+                        registerBalanceCommand(bot)
+                        isBalanceRegistered = true // Mark as registered
+                    }
                     break
+
                 case "/transfer":
-                    registerTransferCommand(bot, pendingTransfers)
+                    if (!isTransferRegistered) {
+                        const registerTransferCommand = require("./commands/transfer")
+                        registerTransferCommand(bot, pendingTransfers)
+                        isTransferRegistered = true // Mark as registered
+                    }
                     break
+
                 default:
                     bot.sendMessage(chatId, "Unknown command. Use /help to see available commands.")
                     break
