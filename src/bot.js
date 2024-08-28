@@ -1,5 +1,6 @@
 const TelegramBot = require("node-telegram-bot-api")
 const { telegramApiToken } = require("./config")
+const { getHelpMessage } = require("./utils")
 
 const bot = new TelegramBot(telegramApiToken, { polling: true })
 
@@ -16,7 +17,8 @@ const validCommands = ["/start", "/help", "/generate", "/transfer", "/balance"]
 
 bot.onText(/\/start/, msg => {
     const chatId = msg.chat.id
-    bot.sendMessage(chatId, "Welcome to the Tron Wallet Bot! Use /help to see available commands.")
+    const helpMessage = getHelpMessage()
+    bot.sendMessage(chatId, "Welcome to the Tron Wallet Bot!\n" + helpMessage)
 })
 
 bot.on("message", msg => {
