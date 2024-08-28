@@ -103,6 +103,16 @@ module.exports = (bot, pendingTransfers) => {
             return
         }
 
+        // Validate the addresses
+        if (!tronWeb.isAddress(fromAddress)) {
+            bot.sendMessage(chatId, `Invalid from address: ${fromAddress}`)
+            return
+        }
+        if (!tronWeb.isAddress(toAddress)) {
+            bot.sendMessage(chatId, `Invalid to address: ${toAddress}`)
+            return
+        }
+
         const privateKey = process.env.FROM_ADDRESS_PRIVATE_KEY
 
         try {
