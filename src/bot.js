@@ -6,9 +6,11 @@ const bot = new TelegramBot(telegramApiToken, { polling: true })
 
 const registerGenerateCommand = require("./commands/generate")
 const registerHelpCommand = require("./commands/help")
+const registerBalanceCommand = require("./commands/balance")
 
 registerGenerateCommand(bot)
 registerHelpCommand(bot)
+registerBalanceCommand(bot)
 
 console.log("Bot is running...")
 
