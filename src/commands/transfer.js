@@ -1,6 +1,7 @@
 require("dotenv").config()
 const TronWeb = require("tronweb")
 const axios = require("axios")
+const { sleep } = require("../utils")
 
 const tronWeb = new TronWeb({
     fullHost: process.env.TRON_FULL_HOST,
@@ -29,7 +30,7 @@ async function fetchTransactionInfoFromTronGrid(txid, retries = 3, delay = 10000
             console.error(`Attempt ${attempt} - Error fetching transaction info: ${error.message}`)
             if (attempt < retries) {
                 console.log(`Retrying in ${delay / 1000} seconds...`)
-                await new Promise(resolve => setTimeout(resolve, delay))
+                await sleep(delay)
             } else {
                 throw new Error("Failed to fetch transaction details from TronGrid after multiple attempts.")
             }
@@ -42,7 +43,44 @@ function calculateGasFee(cost) {
     const memoFee = cost.memoFee || 0
     const accountCreateFee = cost.account_create_fee || 0
     const multiSignFee = cost.multi_sign_fee || 0
-    return netFee + memoFee + accountCreateFee + multiSignFee
+
+    const totalFee = netFee + memoFee + accountCreateFee + multiSignFee
+    return totalFee
+}
+
+// New estimate transaction fee function
+async function estimateTransactionFee(tronWeb, from, to, amount) {
+    try {
+        // Build the transaction
+        const transaction = await tronWeb.transactionBuilder.sendTrx(to, amount, from)
+        // Sign the transaction
+        const unsignedTransaction = await tronWeb.trx.sign(transaction, process.env.FROM_ADDRESS_PRIVATE_KEY)
+        // Broadcast the transaction
+        const broadcastResult = await tronWeb.trx.broadcast(unsignedTransaction)
+        if (!broadcastResult || !broadcastResult.result) {
+            throw new Error(`Failed to broadcast transaction. Response: ${JSON.stringify(broadcastResult)}`)
+        }
+
+        const { txid } = broadcastResult
+        if (!txid) {
+            throw new Error("Failed to retrieve transaction hash (txid) from broadcast result.")
+        }
+
+        // Wait for the transaction info to be available
+        await sleep(5000)
+
+        // Fetch the transaction receipt from TronGrid
+        const receipt = await fetchTransactionInfoFromTronGrid(txid)
+        if (!receipt || !receipt.cost) {
+            throw new Error(`Failed to fetch valid transaction info for txid ${txid}.`)
+        }
+
+        // Calculate the gas fee
+        const gasFee = calculateGasFee(receipt.cost)
+        return { gasFee, transactionHash: txid }
+    } catch (error) {
+        throw new Error(`Failed to estimate transaction fee: ${error.message}`)
+    }
 }
 
 module.exports = (bot, pendingTransfers) => {
@@ -51,7 +89,6 @@ module.exports = (bot, pendingTransfers) => {
         const chatId = msg.chat.id
         const args = msg.text.trim().split(" ")
 
-        // Ensure the /transfer command has the correct number of arguments
         if (args.length !== 4 || isNaN(args[3])) {
             bot.sendMessage(chatId, "Invalid /transfer command format. Usage: /transfer <from_address> <to_address> <amount>")
             return
@@ -61,7 +98,6 @@ module.exports = (bot, pendingTransfers) => {
         const toAddress = args[2]
         const amount = parseFloat(args[3])
 
-        // Check if the amount is a positive number
         if (amount <= 0) {
             bot.sendMessage(chatId, "The transfer amount must be greater than 0.")
             return
@@ -70,22 +106,15 @@ module.exports = (bot, pendingTransfers) => {
         const privateKey = process.env.FROM_ADDRESS_PRIVATE_KEY
 
         try {
+            // Estimate the transaction fee by simulating a transaction
+            const { gasFee, transactionHash } = await estimateTransactionFee(tronWeb, fromAddress, toAddress, tronWeb.toSun(amount))
+            const gasFeeInTRX = parseFloat(tronWeb.fromSun(gasFee))
+            // Check the balance and other conditions
             const balanceInSun = await tronWeb.trx.getBalance(fromAddress)
             const balanceInTRX = parseFloat(tronWeb.fromSun(balanceInSun))
-            const amountInSun = tronWeb.toSun(amount)
 
-            const transactionObject = await tronWeb.transactionBuilder.sendTrx(toAddress, amountInSun, fromAddress)
-
-            const receiverInfo = await tronWeb.trx.getAccount(toAddress)
-            let activationFee = 0
-            if (!receiverInfo.address || receiverInfo.address.length === 0) {
-                activationFee = 1 // Set account activation fee to 1 TRX if inactive
-            }
-
-            const totalCostInTRX = parseFloat(amount) + activationFee
-
-            if (balanceInTRX < totalCostInTRX) {
-                bot.sendMessage(chatId, `Insufficient balance. You need at least ${totalCostInTRX.toFixed(6)} TRX to complete this transfer (including activation fees).`)
+            if (balanceInTRX < amount + gasFeeInTRX) {
+                bot.sendMessage(chatId, `Insufficient balance. You need at least ${(amount + gasFeeInTRX).toFixed(6)} TRX to complete this transfer.`)
                 return
             }
 
@@ -93,13 +122,12 @@ module.exports = (bot, pendingTransfers) => {
                 fromAddress,
                 toAddress,
                 amount,
-                activationFee,
-                totalCostInTRX,
-                transactionObject,
+                gasFee: gasFeeInTRX,
+                transactionHash,
                 privateKey,
             }
 
-            bot.sendMessage(chatId, `You are about to send ${amount.toFixed(6)} TRX from ${fromAddress} to ${toAddress}.\nPossible Activation Fee: ${activationFee.toFixed(6)} TRX\nTotal Estimated Cost: ${totalCostInTRX.toFixed(6)} TRX.\n\nReply with "Yes" or "No" to confirm.`)
+            bot.sendMessage(chatId, `You are about to send ${amount.toFixed(6)} TRX from ${fromAddress} to ${toAddress}.\nEstimated Gas Fee: ${gasFeeInTRX.toFixed(6)} TRX\nTotal Estimated Cost: ${(amount + gasFeeInTRX).toFixed(6)} TRX.\n\nReply with "Yes" or "No" to confirm.`)
         } catch (err) {
             console.error("Error estimating transfer:", err)
             bot.sendMessage(chatId, `Failed to estimate the transfer. Reason: ${err.message}`)
@@ -110,33 +138,24 @@ module.exports = (bot, pendingTransfers) => {
 module.exports.confirmTransfer = async (bot, chatId, pendingTransfers) => {
     if (pendingTransfers[chatId]) {
         try {
-            const { transactionObject, privateKey } = pendingTransfers[chatId]
-            // Process transaction
-            const signedTransaction = await tronWeb.trx.sign(transactionObject, privateKey)
-            const receipt = await tronWeb.trx.sendRawTransaction(signedTransaction)
+            const { transactionHash, privateKey } = pendingTransfers[chatId]
 
-            if (receipt.result) {
-                const transactionHash = receipt.txid
+            // Check the result and send the receipt information to the user
+            const receipt = await fetchTransactionInfoFromTronGrid(transactionHash)
 
-                // Retry fetching transaction info from TronGrid up to 5 times
-                const transactionInfo = await fetchTransactionInfoFromTronGrid(transactionHash)
+            if (receipt) {
+                const gasFee = calculateGasFee(receipt.cost)
+                const actualGasFeeInTRX = tronWeb.fromSun(gasFee)
 
-                if (transactionInfo) {
-                    const gasFee = calculateGasFee(transactionInfo.cost)
-                    const actualGasFeeInTRX = tronWeb.fromSun(gasFee)
-
-                    bot.sendMessage(chatId, `Transfer successful!\nTransaction Hash: ${transactionHash}\nActual Gas Fee: ${actualGasFeeInTRX} TRX\n`)
-                } else {
-                    bot.sendMessage(chatId, "Transfer successful but unable to retrieve fee information.")
-                }
+                bot.sendMessage(chatId, `Transfer successful!\nTransaction Hash: ${transactionHash}\nActual Gas Fee: ${actualGasFeeInTRX} TRX\n`)
             } else {
-                bot.sendMessage(chatId, "Failed to complete the transfer.")
+                bot.sendMessage(chatId, "Transfer successful but unable to retrieve fee information.")
             }
         } catch (err) {
             console.error("Error processing transfer:", err)
             bot.sendMessage(chatId, `Failed to complete the transfer. Reason: ${err.message}`)
         } finally {
-            delete pendingTransfers[chatId] // Clear pending transfer
+            delete pendingTransfers[chatId]
         }
     } else {
         bot.sendMessage(chatId, "No pending transfers to confirm.")

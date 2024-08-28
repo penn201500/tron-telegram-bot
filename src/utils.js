@@ -8,4 +8,8 @@ Available Commands:
     `
 }
 
-module.exports = { getHelpMessage }
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+module.exports = { getHelpMessage, sleep }
