@@ -2,9 +2,17 @@ const TronWeb = require("tronweb")
 const { tronFullHost } = require("../config")
 
 module.exports = bot => {
-    bot.onText(/\/balance (.+)/, async (msg, match) => {
+    bot.onText(/\/balance/, async msg => {
         const chatId = msg.chat.id
-        const address = match[1].trim()
+        const args = msg.text.trim().split(" ")
+
+        // Ensure the /balance command has exactly one argument (the address)
+        if (args.length !== 2) {
+            bot.sendMessage(chatId, "Invalid command format. Usage: /balance <address>")
+            return
+        }
+
+        const address = args[1].trim()
 
         // Check if the address is valid
         if (!TronWeb.isAddress(address)) {
