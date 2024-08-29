@@ -6,8 +6,9 @@ Available Commands:
 /generate - Generate a new Tron wallet (address, private key, and mnemonic)
 /transfer - Transfer TRX to another address. Usage: /transfer <from_address> <to_address> <amount>
 /balance - Check the TRX balance of an address. Usage: /balance <address>
+/info - Get the current TRX price in USD, EUR, and BTC. Usage: /info
 /help - Show this help message
-    `
+    `;
 }
 
 function sleep(ms) {

@@ -11,11 +11,12 @@ let pendingTransfers = {}
 let isGenerateRegistered = false
 let isBalanceRegistered = false
 let isTransferRegistered = false
+let isInfoRegistered = false
 
 console.log("Bot is running...")
 
 // Define the valid commands
-const validCommands = ["/start", "/help", "/generate", "/transfer", "/balance"]
+const validCommands = ["/start", "/help", "/generate", "/transfer", "/balance", "/info"]
 
 // Confirmation handler for "Yes" or "No"
 bot.on("message", msg => {
@@ -78,6 +79,14 @@ bot.on("message", msg => {
                         const registerTransferCommand = require("./commands/transfer")
                         registerTransferCommand(bot, pendingTransfers)
                         isTransferRegistered = true // Mark as registered
+                    }
+                    break
+
+                case "/info":
+                    if (!isInfoRegistered) {
+                        const registerInfoCommand = require("./commands/info")
+                        registerInfoCommand(bot)
+                        isInfoRegistered = true // Mark as registered
                     }
                     break
 
