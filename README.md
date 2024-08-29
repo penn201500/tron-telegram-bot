@@ -9,6 +9,10 @@ This is a Telegram bot built to interact with the Tron blockchain. The bot allow
 - **Check Balance**: Check the TRX balance of a specified Tron address.
 - **Get TRX Prices**: Get the current TRX prices in USD, EUR, BTC pair.
 
+## Demo
+
+![tron-telegram-bot.gif](./tron-telegram-bot.gif)
+
 ## Setup
 
 ### Prerequisites
