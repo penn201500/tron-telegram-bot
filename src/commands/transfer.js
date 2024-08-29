@@ -58,8 +58,12 @@ module.exports = (bot, pendingTransfers) => {
 
             bot.sendMessage(chatId, `You are about to send ${amount.toFixed(6)} TRX from ${fromAddress} to ${toAddress}.\nEstimated Gas Fee: ${gasFeeInTRX.toFixed(6)} TRX\nTotal Estimated Cost: ${(amount + gasFeeInTRX).toFixed(6)} TRX.\n\nReply with "Yes" or "No" to confirm.`)
         } catch (err) {
-            console.error("Error estimating transfer:", err)
-            bot.sendMessage(chatId, `Failed to estimate the transfer. Reason: ${err.message}`)
+            if (err.message === "Insufficient balance") {
+                bot.sendMessage(chatId, `Insufficient balance. You need at least ${(amount).toFixed(6)} TRX to complete this transfer.`)
+            } else {
+                console.error("Error estimating transfer:", err)
+                bot.sendMessage(chatId, `Failed to estimate the transfer. Reason: ${err.message}`)
+            }
         }
     })
 }

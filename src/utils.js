@@ -8,7 +8,7 @@ Available Commands:
 /balance - Check the TRX balance of an address. Usage: /balance <address>
 /info - Get the current TRX price in USD, EUR, and BTC. Usage: /info
 /help - Show this help message
-    `;
+    `
 }
 
 function sleep(ms) {
@@ -58,9 +58,15 @@ function calculateGasFee(cost) {
 async function estimateTransactionFee(tronWeb, from, to, amount) {
     try {
         const transaction = await tronWeb.transactionBuilder.sendTrx(to, amount, from)
-        const unsignedTransaction = await tronWeb.trx.sign(transaction, process.env.FROM_ADDRESS_PRIVATE_KEY)
-        const broadcastResult = await tronWeb.trx.broadcast(unsignedTransaction)
+        const signedTransaction = await tronWeb.trx.sign(transaction, process.env.FROM_ADDRESS_PRIVATE_KEY)
+        const broadcastResult = await tronWeb.trx.broadcast(signedTransaction)
+        // Check if broadcast failed due to insufficient balance
         if (!broadcastResult || !broadcastResult.result) {
+            // Decode the hex-encoded error message
+            const decodedMessage = Buffer.from(broadcastResult.message, "hex").toString()
+            if (broadcastResult.code === "CONTRACT_VALIDATE_ERROR" && decodedMessage.includes("balance is not sufficient")) {
+                throw new Error("Insufficient balance")
+            }
             throw new Error(`Failed to broadcast transaction. Response: ${JSON.stringify(broadcastResult)}`)
         }
 
@@ -79,7 +85,13 @@ async function estimateTransactionFee(tronWeb, from, to, amount) {
         const gasFee = calculateGasFee(receipt.cost)
         return { gasFee, transactionHash: txid }
     } catch (error) {
-        throw new Error(`Failed to estimate transaction fee: ${error.message}`)
+        if (error.message === "Insufficient balance") {
+            // Re-throw the specific error without additional context
+            throw error
+        } else {
+            // For all other errors, wrap them with additional context
+            throw new Error(`Failed to estimate transaction fee: ${error.message}`)
+        }
     }
 }
 
